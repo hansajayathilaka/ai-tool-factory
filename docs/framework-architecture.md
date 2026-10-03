@@ -1,6 +1,6 @@
 # AI Automation Framework — architecture
 
-Status: **built** (roadmap steps 1–2, 2026-10-03). The framework, the shared workflows and the migrated Facebook tool exist. Deviations from the original proposal are marked *Changed in build*. The overview is in [README.md](../README.md).
+Status: **built** (roadmap steps 1–2, 2026-10-03). **Root launch, modes and MCP support added 2026-10-03 (§12)**: Claude Code is now launched at the repo root and `/load-tool`, `/load-studio` and `/build-studio` load a mode. §3–4 describe the folder isolation the layout still relies on. The framework, the shared workflows and the migrated Facebook tool exist. Deviations from the original proposal are marked *Changed in build*. The overview is in [README.md](../README.md).
 
 ## 1. Vision
 
@@ -84,7 +84,7 @@ ai-automation/
 │   ├── scaffold.py                  # new tool / new channel          (from new_page.py)
 │   ├── export.py                    # item → txt / md / html for copy-paste publishing
 │   ├── cli.py                       # tool commands (python run.py ...)
-│   ├── factory.py                   # studio commands (python factory.py ...)
+│   ├── factory.py                   # studio commands (python studio/factory.py ...)
 │   └── tests/
 │
 ├── templates/
@@ -92,7 +92,7 @@ ai-automation/
 │
 ├── studio/                          # BUILD MODE: run `claude` here
 │   ├── CLAUDE.md                    # how to develop core/ and tools/
-│   ├── factory.py                   # shim: python factory.py new-tool | check-tool | list | test
+│   ├── factory.py                   # shim: python studio/factory.py <command> (§12)
 │   └── .claude/
 │       ├── settings.json            # additionalDirectories: ../core, ../tools, ../templates, ../docs
 │       └── skills/
@@ -194,6 +194,7 @@ JSON, because the standard library parses it. It holds everything the shared ski
 | `insights.group_by` | Frontmatter keys to group the engagement summary by |
 | `insights.columns` | Extra CSV header names per field, for the platform's export |
 | `export.formats`, `export.sections` | Formats `run.py export` allows (first is the default) and the sections it includes |
+| `mcp` | Optional. MCP servers the tool's workflows may use: names from the root `.mcp.json`, or claude.ai connectors (`claude_ai_…`). The tool `CLAUDE.md` section "MCP servers" says how (§12) |
 
 *Changed in build:* `rules.sources_required` was dropped (sources are always required, so every claim stays traceable); `rules.image_required` became `rules.image`; `max_count` became `max_hashtags`; `main_section`, `nouns.platform`, `frontmatter.booleans` and `insights` were added.
 
@@ -282,24 +283,24 @@ The seven skills moved from `app/.claude/skills/` to `tools/.claude/skills/` and
 
 ## 7. Building a new tool
 
-In build mode (`cd studio && claude`):
+In studio mode (Claude Code at the repo root, then `/load-studio`):
 
 ```
 /new-tool blog
 ```
 
 1. **Interview**: what is an item, what is a channel, the platform, which sections and limits, item types, image, research sources, export format, insights export, language(s).
-2. **Scaffold**: `python factory.py new-tool blog` copies `templates/tool/` to `tools/blog/` (`tool.json`, `CLAUDE.md`, `run.py`, settings, writer, item and channel templates, all with `TODO`s).
+2. **Scaffold**: `python studio/factory.py new-tool blog` copies `templates/tool/` to `tools/blog/` (`tool.json`, `CLAUDE.md`, `run.py`, settings, writer, item and channel templates, all with `TODO`s).
 3. **Fill**: write `tool.json`, `CLAUDE.md`, `.claude/agents/writer.md`, `templates/item.md`, and a `channels/_test/` channel with one hand-written valid fixture and one invalid fixture.
-4. **Check**: `/check-tool blog` runs the unit tests and `python factory.py check-tool blog`: manifest valid, required files present, no `TODO` left, valid fixture passes, invalid fixture fails, an unedited template fails.
-5. **Try it**: `cd tools/blog && claude`, then `/new-channel`, `/research`, `/generate`.
+4. **Check**: `/check-tool blog` runs the unit tests and `python studio/factory.py check-tool blog`: manifest valid, required files present, no `TODO` left, valid fixture passes, invalid fixture fails, an unedited template fails.
+5. **Try it**: `/clear`, `/load-tool blog`, then `/new-channel`, `/research`, `/generate`.
 
 Target: a working new tool in about 30 minutes. Most of that is the interview and the writer prompt.
 
 ### Testing rules for every change
-- `core/tests/`: unit tests for the frontmatter parser, manifest checks, schema validation and limits, lifecycle moves, insights, scaffolding, export, and one `check_tool` per tool in `tools/`. Run with `python factory.py test` from `studio/`.
+- `core/tests/`: unit tests for the frontmatter parser, manifest checks, schema validation and limits, lifecycle moves, insights, scaffolding, export, and one `check_tool` per tool in `tools/`. Run with `python studio/factory.py test`.
 - Each tool keeps a `channels/_test/` channel. A change is done when the affected workflow has been run against `_test` and the output passes `python run.py check --channel _test`.
-- In a tool session, `/memory` must list only that tool's `CLAUDE.md`, never `studio/CLAUDE.md`.
+- In a tool-mode session, `studio/CLAUDE.md` must never be loaded (`/memory` shows what is).
 
 ## 8. Working within a Pro subscription
 
@@ -337,3 +338,32 @@ Target: a working new tool in about 30 minutes. Most of that is the interview an
 | Should channels be shared across tools (one "brand" with FB + IG + newsletter outputs)? | Decide after the second tool. The shared research cache covers most of the benefit without coupling tools. |
 | Do non-content tools (e.g. job-application tailoring, lead research) fit the same core? | Probably: item, channel, lifecycle and schema are not content-specific. Revisit once there are three content tools. |
 | Does `export` need per-tool rendering (e.g. the blog `Title` as `<h1>`, `[n]` citations as links)? | Decide when building the blog tool. Today md/html export puts a `##` heading on every exported section. |
+
+## 12. Root launch, modes and MCP (added 2026-10-03)
+
+The operator no longer launches Claude Code in different folders. Every session starts at the **repo root**, and a command loads one mode:
+
+| Command | Mode | Scope (files it may change) |
+|---|---|---|
+| `/load-tool <tool>` | tool | `tools/<tool>/channels/`, `tools/shared/research_cache/` |
+| `/load-studio [tool]` | studio | one tool's definition (`tool.json`, `CLAUDE.md`, agents, templates, `_test`), `.mcp.json`, the README tool table |
+| `/build-studio [goal]` | studio-dev | `core/`, `studio/`, `templates/`, `tools/.claude/`, `tools/shared/`, root `CLAUDE.md` and `.claude/`, `.mcp.json`, docs |
+| `/start`, `/help [topic]` | any | none: they only read |
+
+**How it works with Claude Code's loading rules** (checked against the Claude Code docs on 2026-10-03):
+- A subfolder's `CLAUDE.md` and `.claude/skills/` load on demand, when Claude first reads a file there. So `/load-tool` only has to read `tools/<tool>/CLAUDE.md`; the shared workflows then appear as slash commands. `/load-studio` and `/build-studio` read `studio/CLAUDE.md` in the same way.
+- Subagents are found only by walking **up** from the launch folder. The root `.claude/agents/` therefore holds **proxy agents** with the same names and tools as the real ones (`researcher`, `fact-checker`, `writer`). A proxy reads `tools/<tool>/.claude/agents/<name>.md`, or the shared one, and follows it. The calling workflow starts the prompt with `tool: <tool>`. `check-tool` and `check-studio` fail when a proxy is missing or its tools differ.
+- Settings and `.mcp.json` are read only from the launch folder, so the root `.claude/settings.json` holds the permissions for every mode (`python tools/*/run.py`, `python studio/factory.py`, edits to channels and the research cache, the Meta deny list, `autoMemoryEnabled: false`).
+- **Shared workflows and agents stay tool-relative** (`channels/…`, `python run.py`). `/load-tool` gives the session a path table (`channels/…` → `tools/<tool>/channels/…`), and `run.py` resolves item paths from the tool folder. A session launched inside `tools/<tool>/` still works unchanged. Studio files and root commands use repo-root paths.
+- The root `CLAUDE.md` is a short, mode-neutral router: until a mode is loaded, Claude only answers questions. This replaces the earlier "no root `CLAUDE.md`" rule; `tools/CLAUDE.md` is still forbidden.
+- One mode per session: `/clear` before switching. Load commands set `disable-model-invocation: true`, so only the operator switches modes.
+
+**Command template.** `templates/command/SKILL.md` gives every command the same shape: frontmatter (`name`, `description`, `argument-hint`, `disable-model-invocation`), **Needs** (the mode), **Steps** (ending with a report and the next command) and **Rules**. `python studio/factory.py new-command <name> --in <root|studio|shared|tool>` copies it into place. `check-studio` checks every command's frontmatter, rejects leftover `TODO`s, and keeps names unique across the root, studio and shared commands.
+
+**MCP.**
+- The root `.mcp.json` holds project servers. Secrets go only in `${VAR}` references, which Claude Code expands from its own environment, not from `.env`. `core/mcp.py` rejects a literal value under a secret-looking `env` or `headers` name, and any Meta host.
+- claude.ai connectors need no entry.
+- A tool opts in with `tool.json` → `mcp`. Its `CLAUDE.md` section "MCP servers" says which workflow step uses each server and how, and `/load-tool` reports their status.
+- `python studio/factory.py mcp` lists the servers without their secrets.
+- No server may publish, schedule, post or reach a Meta property.
+- Subagent frontmatter also supports `mcpServers` (by name), for a future agent that needs a server.

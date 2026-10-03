@@ -11,8 +11,10 @@ The design and the reasons behind it are in [docs/framework-architecture.md](doc
 
 ## Quick start
 1. Install [Claude Code](https://claude.com/claude-code) and Python 3.10+. Nothing else: the helpers use the standard library only.
-2. **Generate mode** (produce content): `cd tools/facebook && claude`. Run `/memory` once to confirm that only `tools/facebook/CLAUDE.md` is listed. Then:
+2. Launch Claude Code **at the repo root** (`claude` in this folder) and run `/start`. It shows the tools, the modes and the MCP servers.
+3. **Use a tool** (produce content):
    ```
+   /load-tool facebook
    /new-channel My Page Name
    /research my-page-name
    /generate my-page-name 3
@@ -20,8 +22,10 @@ The design and the reasons behind it are in [docs/framework-architecture.md](doc
    (post it on Facebook yourself)
    /mark-published 2026-10-03-some-topic.md
    ```
-3. **Build mode** (develop the framework or a new tool): `cd studio && claude`. Then `/new-tool blog` to build a tool, or `/check-tool all` after a change.
-4. Optional: put Reddit API keys in `.env` (see [core/README.md](core/README.md)).
+4. **Build or update a tool**: `/load-studio`, then `/new-tool blog` or `/update-tool facebook <change>`.
+5. **Improve the studio itself** (`core/`, shared workflows, commands): `/build-studio <goal>`.
+6. One mode per session: run `/clear` before loading another. `/help` lists the commands for the current mode.
+7. Optional: put Reddit API keys in `.env` (see [core/README.md](core/README.md)), and add MCP servers (see "MCP servers" below).
 
 ## Scope
 
@@ -49,35 +53,45 @@ The design and the reasons behind it are in [docs/framework-architecture.md](doc
 | **Lifecycle** | `drafts/ → finalized/ → published/`. The folder **is** the status. | |
 | **Manifest** | `tool.json`: the tool's nouns, item sections, limits and rules | |
 
-## Two modes of working
+## Modes
+Claude Code is always launched at the repo root. A command loads one mode into the session:
 
-| | Build mode | Generate mode |
-|---|---|---|
-| **Purpose** | Develop `core/`, the shared workflows, and tools | Research topics and generate items |
-| **Launch Claude Code from** | `studio/` | `tools/<tool>/` |
-| **Instructions file** | `studio/CLAUDE.md` | `tools/<tool>/CLAUDE.md` |
-| **Who uses it** | Developer | Content operator |
+| Command | Mode | Purpose | Loads | May change |
+|---|---|---|---|---|
+| `/load-tool <tool>` | tool | Research topics and generate items | `tools/<tool>/CLAUDE.md`, the style guide, `run.py info`, the workflows | `tools/<tool>/channels/`, `tools/shared/research_cache/` |
+| `/load-studio [tool]` | studio | Build a new tool or update one | `studio/CLAUDE.md`, the architecture doc, the facebook example | a tool's definition: `tool.json`, `CLAUDE.md`, agents, templates, `_test` |
+| `/build-studio [goal]` | studio-dev | Improve the studio itself | `studio/CLAUDE.md`, the whole architecture doc, `core/README.md` | `core/`, `studio/`, `templates/`, `tools/.claude/`, `tools/shared/`, root commands, `.mcp.json`, docs |
 
-Claude Code loads `CLAUDE.md`, `.claude/skills/` and `.claude/agents/` from the launch folder **and every parent folder**. The layout uses that:
-- `tools/.claude/` holds the shared workflows and agents, so every tool inherits them.
-- `studio/` is a sibling of `tools/`, never a parent, so build-mode instructions and skills never reach a tool session.
-- There is **no `CLAUDE.md` at the repo root**, or it would leak into every session.
-- Each tool sets `"autoMemoryEnabled": false`. Channel knowledge belongs in channel files (`profile.md`, `insights/`), not in Claude's memory.
+Two generic commands work in any mode: `/start` (tools, modes, MCP status, then pick a mode) and `/help [topic]` (the commands for the current mode, or help on one command). The root [CLAUDE.md](CLAUDE.md) is a short router: until a mode is loaded, Claude only answers questions.
+
+How the root session loads things:
+- A subfolder's `CLAUDE.md` and its `.claude/skills/` load **on demand**, the first time Claude reads a file there. `/load-tool` reads the tool's `CLAUDE.md`, which makes the shared workflows in `tools/.claude/skills/` available. `/load-studio` and `/build-studio` read `studio/CLAUDE.md`, which makes `/new-tool`, `/update-tool` and `/check-tool` available.
+- Subagents are found only in the root `.claude/agents/`, so it holds **proxies** (`researcher`, `fact-checker`, `writer`). Each proxy reads the tool's real definition under `tools/` and follows it, with the same tool limits.
+- The root `.claude/settings.json` holds the permissions for every mode and sets `"autoMemoryEnabled": false`. Channel knowledge belongs in channel files (`profile.md`, `insights/`), not in Claude's memory.
+- Launching Claude Code inside `tools/<tool>/` still works for the shared workflows, but root launch is the documented way.
 
 ## Folder structure
 
 ```
-ai-automation/
-├── README.md                     # This file (no CLAUDE.md at the root, on purpose)
+ai-automation/                    # LAUNCH `claude` HERE
+├── README.md                     # This file
+├── CLAUDE.md                     # Root router: modes and session rules only
+├── .mcp.json                     # Project MCP servers (secrets as ${VAR})
+├── .claude/
+│   ├── settings.json             # Permissions for every mode, autoMemoryEnabled=false
+│   ├── skills/                   # /start, /help, /load-tool, /load-studio, /build-studio
+│   └── agents/                   # Proxies: researcher, fact-checker, writer → tools/
 ├── docs/framework-architecture.md
 ├── core/                         # Stdlib Python engine shared by every tool (see core/README.md)
 │   └── tests/
-├── templates/tool/               # Skeleton copied by /new-tool
-├── studio/                       # BUILD MODE: launch `claude` here
+├── templates/
+│   ├── tool/                     # Skeleton copied by /new-tool
+│   └── command/SKILL.md          # Skeleton for every new command (factory.py new-command)
+├── studio/                       # STUDIO: loaded by /load-studio and /build-studio
 │   ├── CLAUDE.md
-│   ├── factory.py                # python factory.py new-tool | check-tool | list | test
-│   └── .claude/skills/           # /new-tool, /check-tool
-└── tools/                        # GENERATE MODE: launch `claude` in tools/<tool>/
+│   ├── factory.py                # python studio/factory.py new-tool | check-tool | check-studio | new-command | mcp | list | test
+│   └── .claude/skills/           # /new-tool, /update-tool, /check-tool
+└── tools/                        # TOOLS: loaded by /load-tool <tool>
     ├── .claude/
     │   ├── skills/               # Shared workflows (see "Workflows")
     │   └── agents/               # researcher.md, fact-checker.md
@@ -142,7 +156,17 @@ Subagents run in their own context window, so heavy research doesn't fill the ma
 - **writer** (one per tool): turns research into drafts in the tool's format and the channel's voice.
 
 ## Building a new tool
-In build mode, `/new-tool <name>` interviews you (item, channel, sections and limits, image, export, insights), scaffolds `tools/<name>/` from `templates/tool/`, fills `tool.json`, `CLAUDE.md`, the writer and a `_test` channel with fixtures, and runs `/check-tool`. The manifest format is in [docs/framework-architecture.md §5](docs/framework-architecture.md#5-the-tool-manifest-tooljson).
+In studio mode (`/load-studio`), `/new-tool <name>` interviews you (item, channel, sections and limits, image, export, insights), scaffolds `tools/<name>/` from `templates/tool/`, fills `tool.json`, `CLAUDE.md`, the writer and a `_test` channel with fixtures, and runs `/check-tool`. The manifest format is in [docs/framework-architecture.md §5](docs/framework-architecture.md#5-the-tool-manifest-tooljson). `/update-tool <name> <change>` changes an existing tool and keeps its manifest, item template, writer and fixtures in sync.
+
+## Commands template
+Every new command starts from [templates/command/SKILL.md](templates/command/SKILL.md): `python studio/factory.py new-command <name> --in <root|studio|shared|tool>`. The template has fixed sections: frontmatter, **Needs** (the mode it runs in), **Steps** (ending in a report and the next command) and **Rules**. `check-studio` fails while a `TODO` is left. It also checks that command names are unique across the root, studio and shared commands.
+
+## MCP servers
+- **Project servers** go in the root [.mcp.json](.mcp.json) (empty to start with). Claude Code reads it only from the launch folder, which is why sessions start at the root. Put secrets in environment variables and reference them as `${VAR}`. Claude Code expands them from its own environment, not from `.env`. `check-studio` rejects a literal secret and any Meta host. Claude Code asks you to approve each project server the first time it is used.
+- **claude.ai connectors** (Gmail, Google Drive, Calendar…) need no entry. They are named by their server name, e.g. `claude_ai_Google_Drive`.
+- **A tool opts in** by listing server names in `tool.json` → `"mcp": [...]`, and its `CLAUDE.md` section "MCP servers" says which workflow step uses each one and how. `/load-tool` reports their status.
+- `python studio/factory.py mcp` lists the servers and the tools that use them. `/mcp` in Claude Code shows the live connection state.
+- No MCP server may publish, schedule or post, or reach a Meta property.
 
 ## Data sources
 
@@ -153,7 +177,8 @@ In build mode, `/new-tool <name>` interviews you (item, channel, sections and li
 | Google Trends | Checked manually | No official API |
 | Reddit | `python run.py reddit`, API keys optional | Good signal for community interest |
 | Engagement | **Manual** CSV export from the platform → `insights/` | The only feedback loop, because publishing is manual |
-| Facebook, Instagram, Threads | **Never used** | Blocked in the validator, the agents and the tool permissions |
+| MCP servers | Declared per tool in `tool.json` → `mcp` | Optional; see "MCP servers" |
+| Facebook, Instagram, Threads | **Never used** | Blocked in the validator, the agents, the permissions and the MCP checks |
 
 ## Content quality and safety rules
 In `tools/shared/style_guide.md`, for every tool:

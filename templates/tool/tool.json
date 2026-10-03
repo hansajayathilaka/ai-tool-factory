@@ -34,5 +34,6 @@
   "export": {
     "formats": ["md"],
     "sections": ["Body"]
-  }
+  },
+  "mcp": []
 }

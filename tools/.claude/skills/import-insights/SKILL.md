@@ -19,7 +19,7 @@ If they don't have a CSV yet, explain the steps in the "Insights export" section
    ```
    python run.py insights <slug> insights/YYYY-MM-DD-export.csv --out insights/YYYY-MM-DD-summary.md
    ```
-   If the command cannot find the columns, it prints the CSV headers. Rerun with `--map field="Header"` for the missing ones. If the same headers will recur, suggest adding them to `tool.json` → `insights.columns` in build mode.
+   If the command cannot find the columns, it prints the CSV headers. Rerun with `--map field="Header"` for the missing ones. If the same headers will recur, suggest adding them to `tool.json` → `insights.columns` in studio mode (`/load-studio`).
 
 3. **Read the results.** Read the new summary, and the previous `insights/*-summary.md` files to see the trend.
    - The **baseline** is the median engagement rate and median reach in the **first** summary for this channel. Keep it fixed once set.

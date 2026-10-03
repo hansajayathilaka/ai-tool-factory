@@ -15,7 +15,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from core import cli, common, export, factory, insights, lifecycle, scaffold  # noqa: E402
+from core import cli, common, export, factory, insights, lifecycle, mcp, scaffold  # noqa: E402
 from core.frontmatter import parse_frontmatter, read_item, sections, set_field, split_frontmatter  # noqa: E402
 from core.sources import rss  # noqa: E402
 from core.tool import Tool, check_manifest  # noqa: E402
@@ -382,11 +382,106 @@ class EveryToolTests(unittest.TestCase):
             with self.subTest(tool=tool_dir.name):
                 self.assertEqual(factory.check_tool(tool_dir), [])
 
-    def test_no_claude_md_above_tools(self):
-        """A CLAUDE.md at the repo root or in tools/ would leak into every tool session."""
-        self.assertFalse((ROOT / "CLAUDE.md").exists())
+    def test_no_claude_md_in_tools(self):
+        """A CLAUDE.md in tools/ itself would load in every tool session."""
         self.assertFalse((common.TOOLS_DIR / "CLAUDE.md").exists())
-        self.assertFalse((ROOT / ".claude").exists())
+
+    def test_studio_is_consistent(self):
+        """Root files, command frontmatter, unique command names, proxy agents and .mcp.json."""
+        self.assertEqual(factory.check_studio(), [])
+
+
+class StudioTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+
+    def write(self, rel, text):
+        path = self.tmp / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_check_skill(self):
+        good = self.write("good/SKILL.md", "---\nname: good\ndescription: Does a thing.\n"
+                                           "argument-hint: <x>\n---\n\nArgs: $ARGUMENTS\n")
+        self.assertEqual(factory.check_skill(good), [])
+        bad = self.write("bad/SKILL.md", "---\nname: other\n---\n\nArgs: $ARGUMENTS\nTODO fill\n")
+        problems = " | ".join(factory.check_skill(bad))
+        for expected in ("match its folder", "description", "argument-hint", "TODO"):
+            self.assertIn(expected, problems)
+        self.assertEqual(factory.check_skill(self.write("raw/SKILL.md", "no frontmatter")),
+                         ["does not start with a --- frontmatter block"])
+
+    def test_command_template_fails_until_filled(self):
+        text = common.COMMAND_TEMPLATE.read_text(encoding="utf-8").replace("{{name}}", "demo")
+        self.assertIn("still contains TODO", factory.check_skill(self.write("demo/SKILL.md", text)))
+
+    def test_new_command(self):
+        roots = {"root": self.tmp / "root", "studio": self.tmp / "studio", "shared": self.tmp / "shared"}
+        self.write("shared/research/SKILL.md", "---\nname: research\n---\n")
+        with mock.patch.object(factory, "skill_roots", return_value=roots):
+            dest = factory.new_command("plan-week", "shared")
+            self.assertIn("name: plan-week", dest.read_text(encoding="utf-8"))
+            for name, where in (("research", "root"), ("plan-week", "root"), ("Bad Name", "root"), ("x", "nowhere")):
+                with self.subTest(name=name, where=where), self.assertRaises(SystemExit):
+                    factory.new_command(name, where)
+
+    def test_proxy_agents_must_match(self):
+        agents = self.tmp / "agents"
+        self.write("agents/writer.md", "---\nname: writer\ntools: Read, Write\n---\n")
+        self.write("agents/scout.md", "---\nname: scout\ntools: Read\n---\n")
+        problems = " | ".join(factory.proxy_problems(agents))
+        self.assertIn("writer.md must have name 'writer' and tools: Read, Write", problems)
+        self.assertIn("no root proxy .claude/agents/scout.md", problems)
+        self.assertEqual(factory.proxy_problems(self.tmp / "missing"), [])
+
+
+class McpTests(unittest.TestCase):
+    def test_config_problems(self):
+        servers = {
+            "drive": {"type": "http", "url": "https://mcp.example.com/mcp",
+                      "headers": {"Authorization": "Bearer ${DRIVE_TOKEN}", "Accept": "application/json"}},
+            "local": {"command": "npx", "args": ["-y", "some-server"], "env": {"API_KEY": "${API_KEY:-}"}},
+        }
+        self.assertEqual(mcp.check_servers(servers), [])
+        bad = {
+            "leaky": {"type": "http", "url": "https://mcp.example.com", "headers": {"Authorization": "Bearer abc123"}},
+            "meta": {"type": "sse", "url": "https://graph.facebook.com/mcp"},
+            "nocmd": {"type": "stdio"},
+            "bad name": {"type": "ftp"},
+        }
+        problems = " | ".join(mcp.check_servers(bad))
+        for expected in ("headers.Authorization looks secret", "Meta properties", "needs a command",
+                         "name must be", "type must be"):
+            self.assertIn(expected, problems)
+
+    def test_load_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / ".mcp.json"
+            self.assertEqual(mcp.load_config(path), ({}, []))
+            path.write_text("{not json", encoding="utf-8")
+            self.assertIn("invalid JSON", mcp.load_config(path)[1][0])
+            path.write_text('{"servers": {}}', encoding="utf-8")
+            self.assertIn("mcpServers", mcp.load_config(path)[1][0])
+
+    def test_target_hides_secrets(self):
+        self.assertEqual(mcp.target({"type": "http", "url": "https://x.example.com/mcp?key=secret"}),
+                         "https://x.example.com/mcp")
+        self.assertEqual(mcp.target({"command": "npx", "args": ["-y", "pkg"], "env": {"TOKEN": "x"}}), "npx -y pkg")
+
+    def test_tool_servers(self):
+        manifest = dict(FB_MANIFEST, mcp=["drive", "claude_ai_Gmail", "nowhere"])
+        self.assertEqual(check_manifest(manifest), [])
+        self.assertTrue(check_manifest(dict(FB_MANIFEST, mcp="drive")))
+        self.assertTrue(check_manifest(dict(FB_MANIFEST, mcp=["bad name"])))
+        tool = Tool(FACEBOOK, manifest)
+        servers = {"drive": {"command": "x"}}
+        self.assertEqual(mcp.status("drive", servers), "configured in .mcp.json")
+        self.assertIn("claude.ai connector", mcp.status("claude_ai_Gmail", servers))
+        problems = mcp.tool_problems(tool, servers)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("'nowhere'", problems[0])
 
 
 if __name__ == "__main__":

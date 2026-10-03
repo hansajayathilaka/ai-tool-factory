@@ -11,6 +11,10 @@ REPO_DIR = Path(__file__).resolve().parent.parent
 TOOLS_DIR = REPO_DIR / "tools"
 SHARED_DIR = TOOLS_DIR / "shared"
 TOOL_TEMPLATE_DIR = REPO_DIR / "templates" / "tool"
+COMMAND_TEMPLATE = REPO_DIR / "templates" / "command" / "SKILL.md"
+STUDIO_DIR = REPO_DIR / "studio"
+ROOT_CLAUDE_DIR = REPO_DIR / ".claude"   # root commands and proxy agents (Claude Code launched at the repo root)
+MCP_CONFIG = REPO_DIR / ".mcp.json"      # project MCP servers; Claude Code reads it from the launch folder only
 
 # A file's folder is its status. Items move between these only through lifecycle.py.
 STATUS_FOLDERS = ("drafts", "finalized", "published")

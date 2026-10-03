@@ -1,6 +1,6 @@
 # Fixtures
 
-Hand-written posts that `python factory.py check-tool facebook` (run from `studio/`) and the core unit tests validate as if they were drafts of this page.
+Hand-written posts that `python studio/factory.py check-tool facebook` and the core unit tests validate as if they were drafts of this page.
 
 - `valid/`: must pass `check` with no errors.
 - `invalid/`: must fail. Each file's reviewer notes say which rule it breaks.

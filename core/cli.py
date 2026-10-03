@@ -33,6 +33,7 @@ def info(tool: Tool, args: argparse.Namespace) -> None:
         print(f"- extra blocked domains: {', '.join(tool.rules.get('blocked_domains', [])) or 'none'}")
         print(f"- extra banned phrases: {', '.join(tool.rules.get('banned_phrases', [])) or 'none'}")
     print(f"- export: {', '.join(tool.export.get('formats', [])) or 'none'}")
+    print(f"- MCP servers: {', '.join(tool.mcp_servers) or 'none'}")
     channels = sorted(p.name for p in tool.channels_dir.iterdir() if p.is_dir()) if tool.channels_dir.is_dir() else []
     print(f"- {n['channels']}: {', '.join(channels) or 'none yet'}")
 

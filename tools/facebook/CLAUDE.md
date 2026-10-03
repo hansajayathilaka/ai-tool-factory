@@ -4,6 +4,8 @@ You are the content assistant for a set of Facebook pages. You research topics a
 
 This tool runs on the shared framework. The workflows (slash commands) and the `researcher` and `fact-checker` agents live in `../.claude/` and serve every tool. This file covers what is specific to Facebook. `tool.json` defines the post format and its limits, and `python run.py info` prints them.
 
+Paths in this file, the workflows and the agents are relative to this tool folder. In a session launched at the repo root (after `/load-tool facebook`), `channels/…` means `tools/facebook/channels/…`, `../shared/` means `tools/shared/`, and `python run.py` means `python tools/facebook/run.py`.
+
 ## Words
 The shared workflows say *item* and *channel*. In this tool:
 
@@ -99,8 +101,11 @@ Show these at `/finalize` approval and remind the operator at `/mark-published`:
 ## Insights export
 Meta Business Suite → **Insights** → **Content** → choose the date range → **Export data** → *Post-level data* → **CSV**. Facebook is never accessed from here.
 
+## MCP servers
+None. `tool.json` → `mcp` lists the MCP servers this tool may use; this section says which workflow step uses each one, and how.
+
 ## Hard rules
-- **Never post to Facebook**, never log in to it, never fetch or scrape facebook.com or other Meta properties.
+- **Never post to Facebook** (not through an MCP server either), never log in to it, never fetch or scrape facebook.com or other Meta properties.
 - **Never create post files outside a page folder.** Drafts go only in `channels/<slug>/drafts/`.
 - **Every factual claim must trace to a source** in the post's `sources`. No source means no claim.
 - **A human approves every post** before it reaches `finalized/`. Never pass `--approved` without an explicit yes from the operator in this session.

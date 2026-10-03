@@ -13,8 +13,9 @@ SECTION_LIMITS = ("max_chars", "max_hashtags", "min_words", "max_words")
 IMAGE_RULES = ("none", "optional", "required")
 EXPORT_FORMATS = ("txt", "md", "html")
 TOP_LEVEL_KEYS = ("name", "description", "nouns", "notes_per_item", "main_section", "frontmatter",
-                  "sections", "rules", "insights", "export")
+                  "sections", "rules", "insights", "export", "mcp")
 PLACEHOLDER_RE = re.compile(r"<(?!https?:|!--)[^<>\n]+>")
+MCP_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _str_list(value) -> bool:
@@ -112,6 +113,10 @@ def check_manifest(m) -> list[str]:
         problems.append(f"export.formats must be a list drawn from {', '.join(EXPORT_FORMATS)}")
     if not _str_list(export.get("sections", [])) or any(s not in names for s in export.get("sections", [])):
         problems.append("export.sections must list names from sections")
+
+    mcp = m.get("mcp", [])
+    if not _str_list(mcp) or any(not MCP_NAME_RE.match(s) for s in mcp):
+        problems.append("mcp must be a list of MCP server names (letters, digits, _ and -)")
     return problems
 
 
@@ -168,6 +173,11 @@ class Tool:
     @property
     def export(self) -> dict:
         return self.manifest.get("export", {})
+
+    @property
+    def mcp_servers(self) -> list[str]:
+        """MCP servers this tool's workflows may use: names from .mcp.json or claude.ai connectors."""
+        return self.manifest.get("mcp", [])
 
     def label(self, key: str) -> str:
         """Human name for a frontmatter key, in the tool's own words (item_type → 'post type')."""

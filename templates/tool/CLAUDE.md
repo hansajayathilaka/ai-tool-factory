@@ -4,6 +4,8 @@ TODO two lines: what you produce, for which channels, and that a human reviews e
 
 This tool runs on the shared framework. The workflows (slash commands) and the `researcher` and `fact-checker` agents live in `../.claude/` and serve every tool. This file covers what is specific to this tool. `tool.json` defines the item format and its limits, and `python run.py info` prints them.
 
+Paths in this file, the workflows and the agents are relative to this tool folder. In a session launched at the repo root (after `/load-tool {{tool}}`), `channels/…` means `tools/{{tool}}/channels/…`, `../shared/` means `tools/shared/`, and `python run.py` means `python tools/{{tool}}/run.py`.
+
 ## Words
 The shared workflows say *item* and *channel*. In this tool:
 
@@ -45,8 +47,11 @@ TODO what the operator must do when publishing by hand (shown at `/finalize` app
 ## Insights export
 TODO how to export a per-item engagement CSV from the platform, or delete this section if there is none.
 
+## MCP servers
+TODO for each server in `tool.json` → `mcp`: which workflow step uses it and how (e.g. "/finalize: save the export to the Drive folder named in the channel profile"). Write "None." if `mcp` is empty.
+
 ## Hard rules
-- **Never publish** to any platform, never log in to it, never fetch or scrape facebook.com or other Meta properties.
+- **Never publish** to any platform (not through an MCP server either), never log in to it, never fetch or scrape facebook.com or other Meta properties.
 - **Never create item files outside a channel folder.** Drafts go only in `channels/<slug>/drafts/`.
 - **Every factual claim must trace to a source** in the item's `sources`. No source means no claim.
 - **A human approves every item** before it reaches `finalized/`. Never pass `--approved` without an explicit yes from the operator in this session.

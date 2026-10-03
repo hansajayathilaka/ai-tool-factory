@@ -1,4 +1,4 @@
-"""Studio commands: python factory.py <command> ... (see python factory.py --help)."""
+"""Studio commands, run from the repo root: python studio/factory.py <command> ... (see --help)."""
 import sys
 from pathlib import Path
 

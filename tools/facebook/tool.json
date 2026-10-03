@@ -37,5 +37,6 @@
   "export": {
     "formats": ["txt"],
     "sections": ["Caption", "Hashtags"]
-  }
+  },
+  "mcp": []
 }

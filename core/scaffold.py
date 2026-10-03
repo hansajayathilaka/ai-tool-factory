@@ -51,8 +51,9 @@ def new_channel(tool: Tool, slug: str, name: str) -> Path:
 
 
 def new_tool(name: str) -> Path:
-    if not TOOL_NAME_RE.match(name) or name == "shared":
-        raise SystemExit(f"Invalid tool name {name!r}: use lowercase letters, digits and hyphens (not 'shared')")
+    if not TOOL_NAME_RE.match(name) or name in ("shared", "root", "studio"):
+        raise SystemExit(f"Invalid tool name {name!r}: use lowercase letters, digits and hyphens "
+                         "(not 'shared', 'root' or 'studio')")
     dest = TOOLS_DIR / name
     if dest.exists():
         raise SystemExit(f"Tool already exists: {dest}")
