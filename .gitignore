@@ -1,0 +1,14 @@
+# Secrets
+.env
+*.env
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Raw engagement exports from Meta Business Suite may hold private page data.
+# The generated summaries (insights/*-summary.md) are committed.
+app/facebook_pages/*/insights/*.csv
+app/facebook_pages/*/insights/*.xlsx
