@@ -8,7 +8,7 @@
 __pycache__/
 *.pyc
 
-# Raw engagement exports from Meta Business Suite may hold private page data.
+# Raw engagement exports may hold private channel data.
 # The generated summaries (insights/*-summary.md) are committed.
-app/facebook_pages/*/insights/*.csv
-app/facebook_pages/*/insights/*.xlsx
+tools/*/channels/*/insights/*.csv
+tools/*/channels/*/insights/*.xlsx

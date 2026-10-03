@@ -1,0 +1,38 @@
+{
+  "name": "{{tool}}",
+  "description": "TODO one line: what this tool produces and for whom",
+  "nouns": {
+    "item": "TODO singular, e.g. article",
+    "items": "TODO plural, e.g. articles",
+    "channel": "TODO singular, e.g. blog",
+    "channels": "TODO plural, e.g. blogs",
+    "publish_verb": "TODO e.g. publish",
+    "platform": "TODO where the human publishes, e.g. WordPress"
+  },
+  "notes_per_item": "one",
+  "main_section": "Body",
+  "frontmatter": {
+    "required": ["pillar", "item_type", "language"],
+    "enums": {
+      "item_type": ["TODO-type-a", "TODO-type-b"]
+    },
+    "booleans": []
+  },
+  "sections": [
+    {"name": "Body", "required": true},
+    {"name": "Reviewer notes", "required": true}
+  ],
+  "rules": {
+    "image": "none",
+    "blocked_domains": [],
+    "banned_phrases": []
+  },
+  "insights": {
+    "group_by": ["pillar", "item_type"],
+    "columns": {}
+  },
+  "export": {
+    "formats": ["md"],
+    "sections": ["Body"]
+  }
+}

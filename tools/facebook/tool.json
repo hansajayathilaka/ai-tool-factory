@@ -1,0 +1,41 @@
+{
+  "name": "facebook",
+  "description": "Facebook post drafts for one or more Facebook pages",
+  "nouns": {
+    "item": "post",
+    "items": "posts",
+    "channel": "page",
+    "channels": "pages",
+    "publish_verb": "post",
+    "platform": "Facebook"
+  },
+  "notes_per_item": "one",
+  "main_section": "Caption",
+  "frontmatter": {
+    "required": ["pillar", "item_type", "language", "image"],
+    "enums": {
+      "item_type": ["tip", "news", "question", "listicle", "quote", "story"],
+      "image.kind": ["none", "own-photo", "stock", "ai-generated"]
+    },
+    "booleans": ["image.needs_ai_label"]
+  },
+  "sections": [
+    {"name": "Caption", "required": true},
+    {"name": "Hashtags", "required": true},
+    {"name": "Alternatives", "required": false},
+    {"name": "Reviewer notes", "required": true}
+  ],
+  "rules": {
+    "image": "optional",
+    "blocked_domains": [],
+    "banned_phrases": []
+  },
+  "insights": {
+    "group_by": ["pillar", "item_type"],
+    "columns": {}
+  },
+  "export": {
+    "formats": ["txt"],
+    "sections": ["Caption", "Hashtags"]
+  }
+}

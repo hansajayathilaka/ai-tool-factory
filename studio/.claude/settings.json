@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "additionalDirectories": ["../core", "../tools", "../templates", "../docs"],
+    "allow": [
+      "Bash(python factory.py *)",
+      "Bash(python3 factory.py *)",
+      "Bash(py factory.py *)",
+      "Bash(python -m unittest *)"
+    ],
+    "deny": [
+      "Read(../.env)",
+      "Read(../tools/*/.env)"
+    ]
+  }
+}

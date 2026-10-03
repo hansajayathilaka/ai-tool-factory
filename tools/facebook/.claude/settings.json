@@ -1,0 +1,28 @@
+{
+  "autoMemoryEnabled": false,
+  "permissions": {
+    "additionalDirectories": ["../shared"],
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Bash(python run.py *)",
+      "Bash(python3 run.py *)",
+      "Bash(py run.py *)",
+      "Read(../shared/**)",
+      "Edit(./channels/**)",
+      "Edit(../shared/research_cache/**)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(../../.env)",
+      "WebFetch(domain:facebook.com)",
+      "WebFetch(domain:www.facebook.com)",
+      "WebFetch(domain:m.facebook.com)",
+      "WebFetch(domain:graph.facebook.com)",
+      "WebFetch(domain:instagram.com)",
+      "WebFetch(domain:www.instagram.com)",
+      "WebFetch(domain:threads.net)",
+      "WebFetch(domain:www.threads.net)"
+    ]
+  }
+}
